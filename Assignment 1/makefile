@@ -2,13 +2,13 @@ CC=gcc
 CFLAGS=-I
 
 main: Main.c userManagement.o student.o word.o
-	$(CC) -o main Main.c UserManagement.c Student.c Word.c -I
+	$(CC) -o main Main.c UserManagement.c Student.c Word.c
 
 word.o: Word.c
-	$(CC) -o word Word.c -I
+	$(CC) -o Word.c
 
-userManagement.o: UserManagement.c
-	$(CC) -o userManagement UserManagement.c -I
+userManagement.o: UserManagement.c student.o
+	$(CC) -o UserManagement.c Student.c
 
-word.o: Word.c
-	$(CC) -o word Word.c -I
+student.o: Student.c
+	$(CC) -o Student.c
