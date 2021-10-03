@@ -1,0 +1,3 @@
+hedspi1 hedspi2016 0
+hust hust321 0
+soict soictfit 1
