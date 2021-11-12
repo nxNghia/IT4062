@@ -1,13 +1,65 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include "UserManagement.h"
 #include "Student.h"
 
 int login = 0;
-char* fileName;
+const char* fileName = "nguoidung.txt";
 struct Student* students = NULL;
 struct user currentUser;
+char saveFile[20] = "currentAccount.txt";
+
+int isIPAddress(const char* str)
+{
+	int isNotNumber = 0;
+	int dot = 0;
+	int values[6] = {-1, -1, -1, -1, -1, -1};
+	int temp_value = -1;
+	int i = 0;
+
+	for (i = 0; i < strlen(str); ++i)
+	{
+		if((str[i] < '0' || str[i] > '9') && str[i] != '.')
+		{
+			return 0;
+		}
+
+		if(str[i] >= '0' && str[i] <= '9')
+		{
+			if(temp_value == -1)
+				temp_value = 0;
+
+			temp_value *= 10;
+			temp_value += str[i] - '0';
+		}
+
+		if(str[i] == '.')
+		{
+			values[dot++] = temp_value;
+			temp_value = -1;
+		}
+	}
+
+	values[dot] = temp_value;
+
+	if(dot != 3)
+		return 0;
+
+	if(i != strlen(str))
+		return 0;
+
+	for (i = 0; i < dot + 1; ++i)
+	{
+		if (values[i] == -1 || values[i] > 255)
+			return 0;
+	}
+
+	return 1;
+}
 
 void Menu()
 {
@@ -20,6 +72,8 @@ void Menu()
 	printf("4. Search\n");
 	printf("5. Change password\n");
 	printf("6. Sign out\n");
+	printf("7. HomepageWithDomainName\n");
+	printf("8. HomepageWithIPAddress\n");
 	printf("Your choice (1-6, other to quit)\n\n");
 }
 
@@ -53,6 +107,7 @@ void Register()
 	printf("Register\n\n");
 	char* username = (char*)calloc(100, sizeof(char));
 	char* password = (char*)calloc(100, sizeof(char));
+	char* homepage = (char*)calloc(100, sizeof(char));
 
 	printf("Username: ");
 	scanf("%s", username);
@@ -62,9 +117,24 @@ void Register()
 	else{
 		printf("Password: ");
 		scanf("%s", password);
+
+		printf("Homepage: \n");
+		scanf("%s", homepage);
 		//add into list
-		addStudent(username, password, 2, &students);
+		addStudent(username, password, 2, homepage, &students);
 		printf("Successful registration. Activated required\n");
+
+		//save into 
+		FILE* fp = fopen(fileName, "w");
+		struct Student* student = students;
+
+		while(student != NULL)
+		{
+			fprintf(fp, "%s %s %d %s\n", student -> user,
+				student -> password, student -> state, student -> homepage);
+			student = student -> next;
+		}
+		fclose(fp);
 	}
 
 	free(username);
@@ -97,7 +167,18 @@ void Activate()
 			{
 				res -> state = 1;
 				printf("Account is activated\n");
+				//save into 
 				res -> block = 0;
+				FILE* fp = fopen(fileName, "w");
+				struct Student* student = students;
+
+				while(student != NULL)
+				{
+					fprintf(fp, "%s %s %d %s\n", student -> user,
+						student -> password, student -> state, student -> homepage);
+					student = student -> next;
+				}
+				fclose(fp);
 			}else{
 				res -> block += 1;
 				if(res -> block == 4)
@@ -174,9 +255,20 @@ void SignIn()
 					login = 1;
 					currentUser.username = (char*)calloc(strlen(username), sizeof(char));
 					currentUser.password = (char*)calloc(strlen(password), sizeof(char));
-
+					currentUser.homepage = (char*)calloc(strlen(res2 -> homepage), sizeof(char));
+					
 					strcpy(currentUser.username, username);
 					strcpy(currentUser.password, password);
+					strcpy(currentUser.homepage, res2 -> homepage);
+
+					//save into 
+					FILE* fp = fopen(saveFile, "w");
+					fprintf(fp, "%c\n", '1');
+					fprintf(fp, "%s\n", currentUser.username);
+					fprintf(fp, "%s\n", currentUser.password);
+					fprintf(fp, "%s\n", currentUser.homepage);
+					fclose(fp);
+
 					break;
 				}
 
@@ -271,7 +363,26 @@ void ChangePassword()
 		{
 			struct Student* res = studentGetByName(username, &students);
 			strcpy(res -> password, newPassword);
+			strcpy(currentUser.password, newPassword);
 			printf("Password changed\n");
+			//save into 
+			FILE* fp = fopen(fileName, "w");
+			struct Student* student = students;
+
+			while(student != NULL)
+			{
+				fprintf(fp, "%s %s %d %s\n", student -> user,
+					student -> password, student -> state, student -> homepage);
+				student = student -> next;
+			}
+			fclose(fp);
+
+			fp = fopen(saveFile, "w");
+			fprintf(fp, "%c\n", '1');
+			fprintf(fp, "%s\n", currentUser.username);
+			fprintf(fp, "%s\n", currentUser.password);
+			fprintf(fp, "%s\n", currentUser.homepage);
+			fclose(fp);
 		}else{
 			if(strcmp(username, currentUser.username) == 0 && strcmp(password, currentUser.password) != 0)
 			{
@@ -303,10 +414,74 @@ void SignOut()
 		if(res != NULL)
 		{
 			printf("Good bye %s\n", username);
+			login = 0;
+			FILE* fp = fopen(saveFile, "w");
+			fprintf(fp, "%c\n", '0');
+			fclose(fp);
 		}else{
 			printf("Cannot find account\n");
 		}
 	}
 
 	free(username);
+}
+
+void HomepageWithIPAddress()
+{
+	if(!login)
+	{
+		printf("User hasn't loged in\n");
+		return;
+	}
+
+	struct hostent* he;
+	struct in_addr** addr_list;
+	struct in_addr addr;
+	int i = 0;
+
+	he = gethostbyname(currentUser.homepage);
+
+	if(he == NULL)
+	{
+		printf("Not found information\n");
+		return;
+	}
+
+	printf("Official IP: %s\n", inet_ntoa(*(struct in_addr*) he -> h_addr));
+
+	printf("Alias IP:\n");
+	addr_list = (struct in_addr**) he -> h_addr_list;
+	for (i = 1; addr_list[i] != NULL; ++i)
+		printf("%s\n", inet_ntoa(*addr_list[i]));
+}
+
+void HomepageWithDomainName()
+{
+	if(!login)
+	{
+		printf("User hasn't loged in\n");
+		return;
+	}
+
+	if(isIPAddress(currentUser.homepage) == 0)
+	{
+		printf("Official name: %s\n", currentUser.homepage);
+		return;
+	}
+
+	struct hostent* he;
+	struct in_addr** addr_list;
+	struct in_addr addr;
+	int i = 0;
+
+	inet_aton(currentUser.homepage, &addr);
+	he = gethostbyaddr(&addr, sizeof(addr), AF_INET);
+	if(he == NULL)
+	{
+		printf("Not found information\n");
+		return;
+	}
+	printf("Official name: %s\n", he -> h_name);
+	addr_list = (struct in_addr**) he -> h_addr_list;
+
 }

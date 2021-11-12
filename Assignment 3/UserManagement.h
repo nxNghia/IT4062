@@ -6,11 +6,13 @@
 extern int login;
 extern char* fileName;
 extern struct Student* students;
+extern char saveFile[20];
 
 struct user
 {
 	char* username;
 	char* password;
+	char* homepage;
 };
 
 extern struct user currentUser;
@@ -23,5 +25,7 @@ void SignIn();
 void Search();
 void ChangePassword();
 void SignOut();
+void HomepageWithDomainName();
+void HomepageWithIPAddress();
 
 #endif

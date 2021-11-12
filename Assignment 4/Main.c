@@ -24,10 +24,10 @@ void init(const char* f)
 			{
 				addWord(str, &_Word);
 			}
-			if(sizeOfWords(_Word) == 3)
+			if(sizeOfWords(_Word) == 4)
 			{
 				addStudent(getAt(0, _Word) -> word, getAt(1, _Word) -> word, 
-					convertString(getAt(2, _Word) -> word), &students);
+					convertString(getAt(2, _Word) -> word), getAt(3, _Word) -> word, &students);
 				_Word = NULL;
 			}
 			pos = 0;
@@ -40,6 +40,28 @@ void init(const char* f)
 	free(str);
 	free(_Word);
 	fclose(fp);
+
+	printf("%s\n", saveFile);
+	fp = fopen(saveFile, "r");
+	c = fgetc(fp);
+
+	if(c == '1')
+	{
+		login = 1;
+	
+		fscanf(fp, "%s", str);
+		currentUser.username = (char*)calloc(strlen(str), sizeof(char));
+		strcpy(currentUser.username, str);
+		fscanf(fp, "%s", str);
+		currentUser.password = (char*)calloc(strlen(str), sizeof(char));
+		strcpy(currentUser.password, str);
+		fscanf(fp, "%s", str);
+		fscanf(fp, "%s", str);
+		currentUser.homepage = (char*)calloc(strlen(str), sizeof(char));
+		strcpy(currentUser.homepage, str);
+	}else{
+		login = 0;
+	}
 }
 
 int main(int argc, const char** argv)
@@ -97,6 +119,18 @@ int main(int argc, const char** argv)
 					break;
 				}
 
+				case 7:
+				{
+					HomepageWithDomainName();
+					break;
+				}
+
+				case 8:
+				{
+					HomepageWithIPAddress();
+					break;
+				}
+
 				default:
 				{
 					off = 1;
@@ -112,19 +146,6 @@ int main(int argc, const char** argv)
 
 		if(off == 1)
 		{
-			//save into file
-			FILE* fp = fopen(argv[1], "w");
-			struct Student* student = students;
-
-			while(student != NULL)
-			{
-				fprintf(fp, "%s %s %d\n", student -> user,
-					student -> password, student -> state);
-				student = student -> next;
-			}
-
-			fclose(fp);
-
 			printf("Turn off\n");
 		}
 	}
